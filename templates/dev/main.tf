@@ -95,6 +95,10 @@ resource "kubernetes_pod" "main" {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
       }
+      env {
+        name  = "CODER_AGENT_NO_REAP"
+        value = "true"
+      }
       # dood 模式：宿主机 docker，无需 privileged
       security_context {
         run_as_user  = 1100
