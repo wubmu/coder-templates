@@ -189,11 +189,11 @@ resource "coder_agent" "main" {
 
     # ---- 首次启动：从镜像骨架复制工具到 PVC ----
     SKEL=/opt/skel
-    INIT_MARKER="$HOME/.coder-skel-init"
-    if [ ! -f "${INIT_MARKER}" ]; then
+    INIT_MARKER="$$HOME/.coder-skel-init"
+    if [ ! -f "$${INIT_MARKER}" ]; then
       echo ">>> First boot: initializing home from skeleton..."
-      cp -rn ${SKEL}/. "$HOME"/ 2>/dev/null || true
-      touch "${INIT_MARKER}"
+      cp -rn $${SKEL}/. "$$HOME"/ 2>/dev/null || true
+      touch "$${INIT_MARKER}"
       echo ">>> Home initialized (Go, Node, GVM, NVM ready)"
     else
       echo ">>> Home already initialized"
