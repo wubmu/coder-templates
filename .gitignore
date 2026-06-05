@@ -15,6 +15,10 @@ terraform.tfvars
 *.swp
 *.swo
 
+# Pre-downloaded binaries (太大了)
+docker/dev/downloads/go/
+docker/dev/downloads/node/
+
 # OS
 .DS_Store
 Thumbs.db
