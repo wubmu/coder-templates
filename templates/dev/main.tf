@@ -197,9 +197,9 @@ resource "coder_agent" "main" {
       echo ">>> Home already initialized"
     fi
 
-    # ---- 确认工具就绪 ----
-    bash -ic 'echo ">>> Go    $(go version   2>/dev/null || echo N/A)"'
-    bash -ic 'echo ">>> Node  $(node --version 2>/dev/null || echo N/A)"'
+    # ---- 确认工具就绪（PATH 已在镜像 ENV 设好，拷贝完直接用） ----
+    echo ">>> Go    $(go version   2>/dev/null || echo N/A)"
+    echo ">>> Node  $(node --version 2>/dev/null || echo N/A)"
     echo ">>> Docker $(docker --version 2>/dev/null || echo 'N/A')"
 
     # 启动 code-server（如果镜像里有）
