@@ -116,8 +116,9 @@ ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${PATH}
 # ============================================
 #  Docker CLI（dood 模式 — 挂宿主机 docker.sock，预下载离线安装）
 # ============================================
+COPY downloads/coder/coder /usr/local/bin/coder
 COPY downloads/docker/docker /usr/local/bin/docker
-RUN chmod +x /usr/local/bin/docker
+RUN chmod +x /usr/local/bin/coder /usr/local/bin/docker
 
 # ============================================
 #  收尾

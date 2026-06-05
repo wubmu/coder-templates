@@ -72,6 +72,22 @@ fi
 # ============================================
 #  Docker CLI — 阿里云静态二进制
 # ============================================
+echo ">> 下载 Coder Agent (从本地 Coder server) ..."
+CODER_DIR="${DL_DIR}/coder"
+mkdir -p "${CODER_DIR}"
+if [ -f "${CODER_DIR}/coder" ]; then
+  echo "  [跳过] 已存在"
+else
+  curl -fsSL -o "${CODER_DIR}/coder" "https://coder.wyb.2wahaha.top/bin/coder-linux-amd64" || true
+  if [ -s "${CODER_DIR}/coder" ]; then
+    chmod +x "${CODER_DIR}/coder"
+    echo "  [完成] coder ($(du -h "${CODER_DIR}/coder" | cut -f1))"
+  else
+    echo "  [失败] 无法下载，检查 Coder server 是否运行"
+    exit 1
+  fi
+fi
+
 DOCKER_VERSION="27.3.1"
 echo ">> 下载 Docker CLI ${DOCKER_VERSION} (阿里云镜像) ..."
 DOCKER_TGZ="docker-${DOCKER_VERSION}.tgz"
