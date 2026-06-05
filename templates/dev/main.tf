@@ -186,10 +186,24 @@ resource "coder_agent" "main" {
 
   startup_script = <<-EOS
     set -e
-    # 常用工具（镜像已有，确认就绪）
-    echo ">>> Go  $(go version  2>/dev/null || echo 'N/A')"
-    echo ">>> Node $(node --version 2>/dev/null || echo 'N/A')"
+
+    # ---- 首次启动：从镜像骨架复制工具到 PVC ----
+    SKEL=/opt/skel
+    INIT_MARKER="$HOME/.coder-skel-init"
+    if [ ! -f "${INIT_MARKER}" ]; then
+      echo ">>> First boot: initializing home from skeleton..."
+      cp -rn ${SKEL}/. "$HOME"/ 2>/dev/null || true
+      touch "${INIT_MARKER}"
+      echo ">>> Home initialized (Go, Node, GVM, NVM ready)"
+    else
+      echo ">>> Home already initialized"
+    fi
+
+    # ---- 确认工具就绪 ----
+    bash -ic 'echo ">>> Go    $(go version   2>/dev/null || echo N/A)"'
+    bash -ic 'echo ">>> Node  $(node --version 2>/dev/null || echo N/A)"'
     echo ">>> Docker $(docker --version 2>/dev/null || echo 'N/A')"
+
     # 启动 code-server（如果镜像里有）
     if command -v code-server &>/dev/null; then
       code-server --bind-addr 0.0.0.0:8080 --auth none /home/coder &

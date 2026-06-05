@@ -1,5 +1,6 @@
 # Coder 全栈开发 workspace 镜像
-# 所有大文件通过 download.sh 预下载，docker build 无需下载 Go/Node/GVM/NVM
+# 工具安装到 /opt/skel，首次启动时由 startup_script 复制到 $HOME（PVC）
+# 镜像里的 /home/coder 仅作临时占位，真正内容由 PVC + skeleton 提供
 FROM ubuntu:24.04
 
 ARG USER=coder
@@ -9,9 +10,7 @@ ARG GO_VERSION=1.23.4
 ARG NODE_VERSION=22.12.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=en_US.UTF-8 \
-    GVM_ROOT=/home/${USER}/.gvm \
-    NVM_DIR=/home/${USER}/.nvm
+    LANG=en_US.UTF-8
 
 # ============================================
 #  换阿里云 apt 源（国内加速）
@@ -43,78 +42,86 @@ RUN groupadd -g ${GID} ${USER} \
     && echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER}
 
 # ============================================
-#  GVM — 从本地 tarball 离线安装
+#  骨架目录 /opt/skel — 所有持久化工具的模板
+#  启动时 startup_script 一次性 cp -rn 到 $HOME（PVC）
 # ============================================
+ENV SKEL=/opt/skel
+RUN mkdir -p ${SKEL}
+
+# --------------------------------------------
+#  GVM — 装到骨架
+# --------------------------------------------
 COPY downloads/gvm/gvm-master.tar.gz /tmp/
 
-RUN mkdir -p ${GVM_ROOT} \
-    && tar -xzf /tmp/gvm-master.tar.gz -C ${GVM_ROOT} --strip-components=1 \
-    && rm /tmp/gvm-master.tar.gz \
-    && chown -R ${USER}:${USER} ${GVM_ROOT}
+RUN mkdir -p ${SKEL}/.gvm \
+    && tar -xzf /tmp/gvm-master.tar.gz -C ${SKEL}/.gvm --strip-components=1 \
+    && rm /tmp/gvm-master.tar.gz
 
-# 添加 shell 集成（GVM 本身 + Go 路径）
-RUN echo '[ -s "$HOME/.gvm/scripts/gvm" ] && source "$HOME/.gvm/scripts/gvm"' >> /home/${USER}/.bashrc \
-    && echo 'export GOPATH=$HOME/go' >> /home/${USER}/.bashrc \
-    && echo 'export PATH=$GOROOT/bin:$GOPATH/bin:$PATH' >> /home/${USER}/.bashrc
-
-# ============================================
-#  NVM — 从本地 tarball 离线安装
-# ============================================
+# --------------------------------------------
+#  NVM — 装到骨架
+# --------------------------------------------
 COPY downloads/nvm/nvm-0.40.3.tar.gz /tmp/
 
-RUN mkdir -p ${NVM_DIR} \
-    && tar -xzf /tmp/nvm-0.40.3.tar.gz -C ${NVM_DIR} --strip-components=1 \
-    && rm /tmp/nvm-0.40.3.tar.gz \
-    && chown -R ${USER}:${USER} ${NVM_DIR}
+RUN mkdir -p ${SKEL}/.nvm \
+    && tar -xzf /tmp/nvm-0.40.3.tar.gz -C ${SKEL}/.nvm --strip-components=1 \
+    && rm /tmp/nvm-0.40.3.tar.gz
 
-RUN echo 'export NVM_DIR="$HOME/.nvm"' >> /home/${USER}/.bashrc \
-    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /home/${USER}/.bashrc
-
-# ============================================
-#  Go — 从本地 tarball 离线安装
-# ============================================
+# --------------------------------------------
+#  Go — 装到骨架的 .gvm/gos/ 下
+# --------------------------------------------
 COPY downloads/go/go${GO_VERSION}.linux-amd64.tar.gz /tmp/
 
-RUN mkdir -p ${GVM_ROOT}/archive \
-    && cp /tmp/go${GO_VERSION}.linux-amd64.tar.gz ${GVM_ROOT}/archive/ \
-    # 先试着用 GVM binary install（命中本地缓存）
-    && bash -c 'source "$HOME/.gvm/scripts/gvm" && gvm install go${GO_VERSION} -B' 2>/dev/null || true \
-    # fallback: 手动解压到 GVM 管理的 gos 目录
-    && if [ ! -d "${GVM_ROOT}/gos/go${GO_VERSION}" ]; then \
-         mkdir -p ${GVM_ROOT}/gos/go${GO_VERSION} \
-         && tar -xzf /tmp/go${GO_VERSION}.linux-amd64.tar.gz -C ${GVM_ROOT}/gos/go${GO_VERSION} --strip-components=1 \
-         && echo "  [fallback] Go installed via manual extract"; \
-       fi \
-    && rm /tmp/go${GO_VERSION}.linux-amd64.tar.gz \
-    && chown -R ${USER}:${USER} ${GVM_ROOT}
+RUN mkdir -p ${SKEL}/.gvm/archive \
+    && cp /tmp/go${GO_VERSION}.linux-amd64.tar.gz ${SKEL}/.gvm/archive/ \
+    && mkdir -p ${SKEL}/.gvm/gos/go${GO_VERSION} \
+    && tar -xzf /tmp/go${GO_VERSION}.linux-amd64.tar.gz -C ${SKEL}/.gvm/gos/go${GO_VERSION} --strip-components=1 \
+    && rm /tmp/go${GO_VERSION}.linux-amd64.tar.gz
 
-ENV GOROOT=${GVM_ROOT}/gos/go${GO_VERSION}
-ENV GOPATH=/home/${USER}/go
-ENV PATH=${GVM_ROOT}/gos/go${GO_VERSION}/bin:${GOPATH}/bin:${PATH}
-
-# ============================================
-#  Node — 从本地 tarball 离线安装
-# ============================================
+# --------------------------------------------
+#  Node — 装到骨架的 .nvm/versions/ 下
+# --------------------------------------------
 COPY downloads/node/node-v${NODE_VERSION}-linux-x64.tar.xz /tmp/
 
-RUN mkdir -p ${NVM_DIR}/.cache/bin \
-    && cp /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz ${NVM_DIR}/.cache/bin/ \
-    # 先试着用 NVM install（命中本地缓存）
-    && bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
-         && nvm install ${NODE_VERSION}' 2>/dev/null || true \
-    # fallback: 手动解压到 NVM 管理的 versions 目录
-    && if [ ! -d "${NVM_DIR}/versions/node/v${NODE_VERSION}" ]; then \
-         mkdir -p ${NVM_DIR}/versions/node/v${NODE_VERSION} \
-         && tar -xJf /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz -C ${NVM_DIR}/versions/node/v${NODE_VERSION} --strip-components=1 \
-         && echo "  [fallback] Node installed via manual extract"; \
-       fi \
-    && rm /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz \
-    && chown -R ${USER}:${USER} ${NVM_DIR}
+RUN mkdir -p ${SKEL}/.nvm/.cache/bin \
+    && cp /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz ${SKEL}/.nvm/.cache/bin/ \
+    && mkdir -p ${SKEL}/.nvm/versions/node/v${NODE_VERSION} \
+    && tar -xJf /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz -C ${SKEL}/.nvm/versions/node/v${NODE_VERSION} --strip-components=1 \
+    && rm /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz
 
-ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${PATH}
+# --------------------------------------------
+#  .bashrc — 骨架里的（复制到 PVC 后用户可改）
+# --------------------------------------------
+RUN echo '# ===== Coder workspace shell config =====' > ${SKEL}/.bashrc \
+    && echo '' >> ${SKEL}/.bashrc \
+    && echo 'export GVM_ROOT="$HOME/.gvm"' >> ${SKEL}/.bashrc \
+    && echo 'export NVM_DIR="$HOME/.nvm"' >> ${SKEL}/.bashrc \
+    && echo '' >> ${SKEL}/.bashrc \
+    && echo '# GVM' >> ${SKEL}/.bashrc \
+    && echo '[ -s "$GVM_ROOT/scripts/gvm" ] && source "$GVM_ROOT/scripts/gvm"' >> ${SKEL}/.bashrc \
+    && echo '' >> ${SKEL}/.bashrc \
+    && echo '# NVM' >> ${SKEL}/.bashrc \
+    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ${SKEL}/.bashrc \
+    && echo '' >> ${SKEL}/.bashrc \
+    && echo '# Go (default '${GO_VERSION}')' >> ${SKEL}/.bashrc \
+    && echo 'export GOROOT="$GVM_ROOT/gos/go'${GO_VERSION}'"' >> ${SKEL}/.bashrc \
+    && echo 'export GOPATH="$HOME/go"' >> ${SKEL}/.bashrc \
+    && echo 'export PATH="$GOROOT/bin:$GOPATH/bin:$PATH"' >> ${SKEL}/.bashrc \
+    && echo '' >> ${SKEL}/.bashrc \
+    && echo '# Node (default v'${NODE_VERSION}')' >> ${SKEL}/.bashrc \
+    && echo 'export PATH="$NVM_DIR/versions/node/v'${NODE_VERSION}'/bin:$PATH"' >> ${SKEL}/.bashrc \
+    && echo '' >> ${SKEL}/.bashrc \
+    && echo 'export PS1="\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ "' >> ${SKEL}/.bashrc
+
+# .bashrc 副本也放到镜像 home（初始 login 用，PVC 挂载后会隐藏）
+RUN cp ${SKEL}/.bashrc /home/${USER}/.bashrc
+
+# --------------------------------------------
+#  统一 chown（所有骨架文件归 coder 用户）
+# --------------------------------------------
+RUN chown -R ${USER}:${USER} ${SKEL}
 
 # ============================================
-#  Docker CLI（dood 模式 — 挂宿主机 docker.sock，预下载离线安装）
+#  Docker CLI + Coder CLI（系统路径，不依赖 home）
 # ============================================
 COPY downloads/coder/coder /usr/local/bin/coder
 COPY downloads/docker/docker /usr/local/bin/docker
