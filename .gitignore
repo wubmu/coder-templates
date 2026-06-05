@@ -18,6 +18,7 @@ terraform.tfvars
 # Pre-downloaded binaries (太大了)
 docker/dev/downloads/go/
 docker/dev/downloads/node/
+providers/
 
 # OS
 .DS_Store

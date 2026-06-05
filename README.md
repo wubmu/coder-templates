@@ -12,7 +12,11 @@ coder-templates/
 │   └── k8s-basic/          ←  K8s Pod workspace 模板
 ├── scripts/                 ← 运维脚本
 │   ├── build-images.sh     ←  构建 + 推送镜像
-│   └── push-templates.sh   ←  推送模板到 Coder
+│   ├── push-templates.sh   ←  推送模板到 Coder
+│   └── mirror-providers.sh ←  预下载 Terraform provider
+├── config/
+│   ├── providers.tf        ←  provider 声明（mirror 用）
+│   └── terraformrc         ←  本地镜像配置
 └── README.md
 ```
 
@@ -29,7 +33,16 @@ docker build -t registry.example.com/coder/base:latest docker/base/
 docker push registry.example.com/coder/base:latest
 ```
 
-### 2. 推送模板到 Coder
+### 2. 预下载 Terraform provider（可选，离线/弱网环境）
+
+```bash
+# 一次性预下载 coder/coder + hashicorp/kubernetes 到 providers/
+./scripts/mirror-providers.sh
+```
+
+然后在 **homelab** 侧将 `providers/` 目录挂载到 Coder server 容器，配合 `config/terraformrc` 或设置 `CODER_TERRAFORM_MIRROR_DIR` 环境变量即可离线创建 workspace。
+
+### 3. 推送模板到 Coder
 
 ```bash
 export CODER_URL=https://coder.wyb.2wahaha.top
@@ -38,7 +51,7 @@ export CODER_TOKEN=$(coder tokens create -n template-push)
 ./scripts/push-templates.sh k8s-basic
 ```
 
-### 3. 在 Coder UI 使用模板
+### 4. 在 Coder UI 使用模板
 
 1. 打开 Coder → Templates
 2. 找到推送的模板 → Create Workspace
@@ -48,7 +61,8 @@ export CODER_TOKEN=$(coder tokens create -n template-push)
 
 | 模板 | 类型 | 说明 |
 |------|------|------|
-| k8s-basic | K8s Pod | 基础开发环境，运行在 k3s 集群中 |
+| k8s-basic | K8s Pod | 基础开发环境，通用工作区 |
+| dev | K8s Pod (privileged) | 全栈开发 — GVM + NVM + dind |
 
 ## 与 homelab 的关系
 
