@@ -69,6 +69,26 @@ else
   echo "  [完成] ${NODE_FILE} ($(du -h "${DL_DIR}/node/${NODE_FILE}" | cut -f1))"
 fi
 
+# ============================================
+#  Docker CLI — 阿里云静态二进制
+# ============================================
+DOCKER_VERSION="27.3.1"
+echo ">> 下载 Docker CLI ${DOCKER_VERSION} (阿里云镜像) ..."
+DOCKER_TGZ="docker-${DOCKER_VERSION}.tgz"
+DOCKER_DIR="${DL_DIR}/docker"
+mkdir -p "${DOCKER_DIR}"
+if [ -f "${DOCKER_DIR}/docker" ]; then
+  echo "  [跳过] 已存在"
+else
+  curl -fsSL -o "${DOCKER_DIR}/${DOCKER_TGZ}" \
+    "https://mirrors.aliyun.com/docker-ce/linux/static/stable/x86_64/${DOCKER_TGZ}"
+  # 只解压 docker CLI，不要 dockerd/containerd
+  tar -xzf "${DOCKER_DIR}/${DOCKER_TGZ}" -C /tmp docker/docker
+  mv /tmp/docker/docker "${DOCKER_DIR}/docker"
+  rm -rf /tmp/docker "${DOCKER_DIR}/${DOCKER_TGZ}"
+  echo "  [完成] docker ($(du -h "${DOCKER_DIR}/docker" | cut -f1))"
+fi
+
 echo ""
 echo "========================================"
 echo ">> 预下载完成"

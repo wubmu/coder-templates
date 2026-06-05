@@ -3,8 +3,8 @@
 FROM ubuntu:24.04
 
 ARG USER=coder
-ARG UID=1000
-ARG GID=1000
+ARG UID=1100
+ARG GID=1100
 ARG GO_VERSION=1.23.4
 ARG NODE_VERSION=22.12.0
 
@@ -12,6 +12,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     GVM_ROOT=/home/${USER}/.gvm \
     NVM_DIR=/home/${USER}/.nvm
+
+# ============================================
+#  换阿里云 apt 源（国内加速）
+# ============================================
+RUN sed -i 's|//ports.ubuntu.com|//mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources \
+    && sed -i 's|//archive.ubuntu.com|//mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources \
+    && sed -i 's|//security.ubuntu.com|//mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources
 
 # ============================================
 #  系统基础工具
@@ -28,8 +35,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ============================================
 #  创建 coder 用户
 # ============================================
+ARG DOCKER_GID=988
+
 RUN groupadd -g ${GID} ${USER} \
-    && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USER} \
+    && groupadd -g ${DOCKER_GID} docker-host 2>/dev/null || true \
+    && useradd -m -u ${UID} -g ${GID} -G docker-host -s /bin/bash ${USER} \
     && echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER}
 
 # ============================================
@@ -104,20 +114,10 @@ RUN mkdir -p ${NVM_DIR}/.cache/bin \
 ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${PATH}
 
 # ============================================
-#  Docker CE（dind）— 保持在线安装
+#  Docker CLI（dood 模式 — 挂宿主机 docker.sock，预下载离线安装）
 # ============================================
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-    | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
-             https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
-       > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get install -y --no-install-recommends \
-       docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
-    && rm -rf /var/lib/apt/lists/*
-
-# dind 启动脚本
-COPY dind-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/dind-entrypoint.sh
+COPY downloads/docker/docker /usr/local/bin/docker
+RUN chmod +x /usr/local/bin/docker
 
 # ============================================
 #  收尾

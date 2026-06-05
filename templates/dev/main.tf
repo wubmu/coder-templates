@@ -88,13 +88,12 @@ resource "kubernetes_pod" "main" {
   spec {
     service_account_name = "coder"
     restart_policy       = "Never"
-    # dind 需要 privileged
     container {
       name              = "dev"
       image             = var.workspace_image
       image_pull_policy = "IfNotPresent"
-      command           = ["/usr/local/bin/dind-entrypoint.sh"]
-      args = ["sh", "-c", <<-EOS
+      command           = ["sh", "-c"]
+      args = [<<-EOS
         curl -fsSL https://coder.com/install.sh | sh -s -- --version ${data.coder_workspace.me.transition == "delete" ? "0.0.0" : coder_agent.main.version} &&
         exec coder agent
       EOS
@@ -103,8 +102,10 @@ resource "kubernetes_pod" "main" {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
       }
+      # dood 模式：宿主机 docker，无需 privileged
       security_context {
-        privileged = true
+        run_as_user  = 1100
+        run_as_group = 1100
       }
       resources {
         requests = {
@@ -121,12 +122,24 @@ resource "kubernetes_pod" "main" {
         mount_path = "/home/coder"
         read_only  = false
       }
+      volume_mount {
+        name       = "docker-sock"
+        mount_path = "/var/run/docker.sock"
+        read_only  = true
+      }
     }
     volume {
       name = "home"
       persistent_volume_claim {
         claim_name = kubernetes_persistent_volume_claim.home.metadata[0].name
         read_only  = false
+      }
+    }
+    volume {
+      name = "docker-sock"
+      host_path {
+        path = "/var/run/docker.sock"
+        type = "Socket"
       }
     }
   }
