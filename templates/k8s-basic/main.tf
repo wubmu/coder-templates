@@ -108,7 +108,6 @@ resource "kubernetes_pod" "main" {
       image_pull_policy = "IfNotPresent"
       # Coder agent（管理连接 + IDE）
       command = ["sh", "-c", "curl -fsSL https://coder.com/install.sh | sh && exec coder agent"]
-      ]
       env {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token

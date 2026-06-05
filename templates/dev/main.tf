@@ -90,14 +90,10 @@ resource "kubernetes_pod" "main" {
       name              = "dev"
       image             = var.workspace_image
       image_pull_policy = "IfNotPresent"
-      command           = ["coder", "agent"]
+      command           = ["coder", "agent", "--no-reap"]
       env {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
-      }
-      env {
-        name  = "CODER_AGENT_NO_REAP"
-        value = "true"
       }
       # dood 模式：宿主机 docker，无需 privileged
       security_context {
