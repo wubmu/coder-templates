@@ -31,14 +31,10 @@ variable "memory" {
   default = "4Gi"
 }
 
-variable "home_disk_size" {
+variable "disk_size" {
   type    = number
-  default = 20
-}
-
-variable "docker_disk_size" {
-  type    = number
-  default = 20
+  default = 40
+  description = "/home 持久化存储（含源码 + Docker 镜像/容器）"
 }
 
 provider "kubernetes" {}
@@ -50,7 +46,7 @@ data "coder_workspace_owner" "me" {
   username = data.coder_workspace.me.owner
 }
 
-# ---- PVC: /home 持久化 ----
+# ---- PVC: /home 持久化（含源码 + Docker 数据） ----
 resource "kubernetes_persistent_volume_claim" "home" {
   metadata {
     name      = "coder-${lower(data.coder_workspace.me.name)}-home"
@@ -67,29 +63,7 @@ resource "kubernetes_persistent_volume_claim" "home" {
     access_modes = ["ReadWriteOnce"]
     resources {
       requests = {
-        storage = "${var.home_disk_size}Gi"
-      }
-    }
-  }
-}
-
-# ---- PVC: Docker 数据持久化 ----
-resource "kubernetes_persistent_volume_claim" "docker" {
-  metadata {
-    name      = "coder-${lower(data.coder_workspace.me.name)}-docker"
-    namespace = var.namespace
-    labels = {
-      "app.kubernetes.io/name"     = "coder-workspace"
-      "app.kubernetes.io/instance" = lower(data.coder_workspace.me.name)
-      "coder/workspace"            = lower(data.coder_workspace.me.name)
-    }
-  }
-  wait_until_bound = false
-  spec {
-    access_modes = ["ReadWriteOnce"]
-    resources {
-      requests = {
-        storage = "${var.docker_disk_size}Gi"
+        storage = "${var.disk_size}Gi"
       }
     }
   }
@@ -147,23 +121,11 @@ resource "kubernetes_pod" "main" {
         mount_path = "/home/coder"
         read_only  = false
       }
-      volume_mount {
-        name       = "docker"
-        mount_path = "/home/coder/.docker"
-        read_only  = false
-      }
     }
     volume {
       name = "home"
       persistent_volume_claim {
         claim_name = kubernetes_persistent_volume_claim.home.metadata[0].name
-        read_only  = false
-      }
-    }
-    volume {
-      name = "docker"
-      persistent_volume_claim {
-        claim_name = kubernetes_persistent_volume_claim.docker.metadata[0].name
         read_only  = false
       }
     }

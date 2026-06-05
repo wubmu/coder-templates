@@ -9,8 +9,7 @@
 | securityContext | non-root | **privileged**（dind 需要） |
 | 镜像 | coder 官方 | **coder-dev**（自建） |
 | 工具 | 无 | Go 1.23 + Node 22 + Docker |
-| PVC | 1 (/home) | 2 (/home + /home/coder/.docker) |
-| 默认资源 | 2CPU / 2Gi | 2CPU / 4Gi |
+| /home 存储 | 10Gi | **40Gi**（含源码 + Docker 镜像） |
 
 ## 参数
 
@@ -19,8 +18,7 @@
 | `workspace_image` | `ghcr.io/coder/coder:latest` | 换成自己构建的 coder-dev 镜像 |
 | `cpu` | `2` | CPU 核心数 |
 | `memory` | `4Gi` | 内存 |
-| `home_disk_size` | `20` | /home 持久化存储 (Gi) |
-| `docker_disk_size` | `20` | Docker 镜像/容器存储 (Gi) |
+| `disk_size` | `40` | /home 持久化存储 (Gi)，含源码 + Docker 镜像/容器 |
 
 ## 推送模板
 
