@@ -112,9 +112,6 @@ RUN echo '# ===== Coder workspace shell config =====' > ${SKEL}/.bashrc \
     && echo '' >> ${SKEL}/.bashrc \
     && echo 'export PS1="\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ "' >> ${SKEL}/.bashrc
 
-# .bashrc 副本也放到镜像 home（初始 login 用，PVC 挂载后会隐藏）
-RUN cp ${SKEL}/.bashrc /home/${USER}/.bashrc
-
 # --------------------------------------------
 #  统一 chown（所有骨架文件归 coder 用户）
 # --------------------------------------------
