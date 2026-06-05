@@ -90,8 +90,7 @@ resource "kubernetes_pod" "main" {
       name              = "dev"
       image             = var.workspace_image
       image_pull_policy = "IfNotPresent"
-      command           = ["sh", "-c"]
-      args = ["sh", "-c", "curl -fsSL https://coder.com/install.sh | sh && exec coder agent"]
+      command           = ["sh", "-c", "curl -fsSL https://coder.com/install.sh | sh && exec coder agent"]
       env {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
