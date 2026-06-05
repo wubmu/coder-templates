@@ -28,7 +28,7 @@ variable "cpu" {
 
 variable "memory" {
   type    = string
-  default = "4Gi"
+  default = "1Gi"
 }
 
 variable "disk_size" {
