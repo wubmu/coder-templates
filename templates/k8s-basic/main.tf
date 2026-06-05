@@ -107,10 +107,7 @@ resource "kubernetes_pod" "main" {
       image             = var.workspace_image
       image_pull_policy = "IfNotPresent"
       # Coder agent（管理连接 + IDE）
-      command = ["sh", "-c", <<-EOS
-        curl -fsSL https://coder.com/install.sh | sh -s -- --version ${data.coder_workspace.me.transition == "delete" ? "0.0.0" : coder_agent.main.version} &&
-        exec coder agent
-      EOS
+      command = ["sh", "-c", "curl -fsSL https://coder.com/install.sh | sh && exec coder agent"]
       ]
       env {
         name  = "CODER_AGENT_TOKEN"
@@ -144,9 +141,8 @@ resource "kubernetes_pod" "main" {
 
 # ---- Coder Agent（IDE 连接 + 生命周期管理） ----
 resource "coder_agent" "main" {
-  arch                   = "amd64"
-  os                     = "linux"
-  dir                    = "/home/coder"
+  arch               = "amd64"
+  os                 = "linux"
   connection_timeout = 300
 
   metadata {
