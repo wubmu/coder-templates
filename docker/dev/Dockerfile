@@ -112,6 +112,10 @@ RUN echo '# ===== Coder workspace shell config =====' > ${SKEL}/.bashrc \
     && echo '' >> ${SKEL}/.bashrc \
     && echo 'export PS1="\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ "' >> ${SKEL}/.bashrc
 
+# .profile — login shell 时 source .bashrc
+RUN echo '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' > ${SKEL}/.profile \
+    && chown ${USER}:${USER} ${SKEL}/.profile
+
 # --------------------------------------------
 #  统一 chown（所有骨架文件归 coder 用户）
 # --------------------------------------------
