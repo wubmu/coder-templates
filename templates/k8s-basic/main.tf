@@ -50,9 +50,7 @@ provider "coder" {}
 # 每个 workspace 生成唯一名称
 data "coder_workspace" "me" {}
 
-data "coder_workspace_owner" "me" {
-  username = data.coder_workspace.me.owner
-}
+data "coder_workspace_owner" "me" {}
 
 # ---- PVC（持久化 /home） ----
 resource "kubernetes_persistent_volume_claim" "home" {
@@ -149,9 +147,7 @@ resource "coder_agent" "main" {
   arch                   = "amd64"
   os                     = "linux"
   dir                    = "/home/coder"
-  connection_timeout     = 300
-  startup_script_timeout = 300
-  login_before_ready     = false
+  connection_timeout = 300
 
   metadata {
     display_name = "CPU"

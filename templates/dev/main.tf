@@ -42,9 +42,7 @@ provider "kubernetes" {}
 provider "coder" {}
 
 data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {
-  username = data.coder_workspace.me.owner
-}
+data "coder_workspace_owner" "me" {}
 
 # ---- PVC: /home 持久化（含源码 + Docker 数据） ----
 resource "kubernetes_persistent_volume_claim" "home" {
@@ -150,9 +148,7 @@ resource "coder_agent" "main" {
   arch                   = "amd64"
   os                     = "linux"
   dir                    = "/home/coder"
-  connection_timeout     = 300
-  startup_script_timeout = 600
-  login_before_ready     = false
+  connection_timeout = 300
 
   metadata {
     display_name = "CPU"
