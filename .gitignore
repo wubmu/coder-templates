@@ -16,8 +16,7 @@ terraform.tfvars
 *.swo
 
 # Pre-downloaded binaries (太大了)
-docker/dev/downloads/go/
-docker/dev/downloads/node/
+docker/dev/downloads/
 providers/
 
 # OS

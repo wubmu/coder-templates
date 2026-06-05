@@ -1,33 +1,78 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 预下载 Go 1.23 + Node 22 二进制包（离线构建用）
+# 预下载 GVM + NVM + Go + Node（全部使用国内镜像）
 # 用法: ./download.sh
+#
+# 下载完 docker build 无需联网
 
 GO_VERSION="1.23.4"
 NODE_VERSION="22.12.0"
+NVM_VERSION="0.40.3"
+GVM_BRANCH="master"
+
+# 镜像源
+MIRROR_GO="https://mirrors.aliyun.com/golang"
+MIRROR_NODE="https://mirrors.aliyun.com/nodejs-release"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GO_DIR="${SCRIPT_DIR}/downloads/go"
-NODE_DIR="${SCRIPT_DIR}/downloads/node"
-mkdir -p "${GO_DIR}" "${NODE_DIR}"
+DL_DIR="${SCRIPT_DIR}/downloads"
+mkdir -p "${DL_DIR}/go" "${DL_DIR}/node" "${DL_DIR}/gvm" "${DL_DIR}/nvm"
 
-echo ">> 下载 Go ${GO_VERSION} ..."
+# ============================================
+#  GVM — 预下载 GitHub repo
+# ============================================
+echo ">> 下载 GVM (moovweb/gvm) ..."
+GVM_TGZ="${DL_DIR}/gvm/gvm-${GVM_BRANCH}.tar.gz"
+GVM_URL="https://github.com/moovweb/gvm/archive/refs/heads/${GVM_BRANCH}.tar.gz"
+if [ -f "${GVM_TGZ}" ]; then
+  echo "  [跳过] 已存在"
+else
+  curl -fsSL -o "${GVM_TGZ}" "${GVM_URL}"
+  echo "  [完成] gvm-${GVM_BRANCH}.tar.gz ($(du -h "${GVM_TGZ}" | cut -f1))"
+fi
+
+# ============================================
+#  NVM — 预下载 GitHub repo
+# ============================================
+echo ">> 下载 NVM (nvm-sh/nvm) v${NVM_VERSION} ..."
+NVM_TGZ="${DL_DIR}/nvm/nvm-${NVM_VERSION}.tar.gz"
+NVM_URL="https://github.com/nvm-sh/nvm/archive/refs/tags/v${NVM_VERSION}.tar.gz"
+if [ -f "${NVM_TGZ}" ]; then
+  echo "  [跳过] 已存在"
+else
+  curl -fsSL -o "${NVM_TGZ}" "${NVM_URL}"
+  echo "  [完成] nvm-${NVM_VERSION}.tar.gz ($(du -h "${NVM_TGZ}" | cut -f1))"
+fi
+
+# ============================================
+#  Go — 阿里云镜像
+# ============================================
+echo ">> 下载 Go ${GO_VERSION} (阿里云镜像) ..."
 GO_FILE="go${GO_VERSION}.linux-amd64.tar.gz"
-if [ -f "${GO_DIR}/${GO_FILE}" ]; then
+if [ -f "${DL_DIR}/go/${GO_FILE}" ]; then
   echo "  [跳过] 已存在"
 else
-  curl -fsSL -o "${GO_DIR}/${GO_FILE}" "https://go.dev/dl/${GO_FILE}"
-  echo "  [完成] ${GO_FILE} ($(du -h "${GO_DIR}/${GO_FILE}" | cut -f1))"
+  curl -fsSL -o "${DL_DIR}/go/${GO_FILE}" "${MIRROR_GO}/${GO_FILE}"
+  echo "  [完成] ${GO_FILE} ($(du -h "${DL_DIR}/go/${GO_FILE}" | cut -f1))"
 fi
 
-echo ">> 下载 Node ${NODE_VERSION} ..."
+# ============================================
+#  Node — 阿里云镜像
+# ============================================
+echo ">> 下载 Node ${NODE_VERSION} (阿里云镜像) ..."
 NODE_FILE="node-v${NODE_VERSION}-linux-x64.tar.xz"
-if [ -f "${NODE_DIR}/${NODE_FILE}" ]; then
+if [ -f "${DL_DIR}/node/${NODE_FILE}" ]; then
   echo "  [跳过] 已存在"
 else
-  curl -fsSL -o "${NODE_DIR}/${NODE_FILE}" "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_FILE}"
-  echo "  [完成] ${NODE_FILE} ($(du -h "${NODE_DIR}/${NODE_FILE}" | cut -f1))"
+  curl -fsSL -o "${DL_DIR}/node/${NODE_FILE}" "${MIRROR_NODE}/v${NODE_VERSION}/${NODE_FILE}"
+  echo "  [完成] ${NODE_FILE} ($(du -h "${DL_DIR}/node/${NODE_FILE}" | cut -f1))"
 fi
 
-echo ">> 下载完成"
+echo ""
+echo "========================================"
+echo ">> 预下载完成"
+du -sh "${DL_DIR}/gvm/"* "${DL_DIR}/nvm/"* "${DL_DIR}/go/"* "${DL_DIR}/node/"* 2>/dev/null
+echo "========================================"
+echo ">> 现在可以离线构建："
+echo "   docker build -t coder-dev:latest ."

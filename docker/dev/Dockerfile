@@ -1,6 +1,5 @@
 # Coder 全栈开发 workspace 镜像
-# 预置 GVM (Go 1.23) + NVM (Node 22) + dind
-# Go/Node 二进制包离线预置在镜像内，workspace 启动后无需联网即可切换版本
+# 所有大文件通过 download.sh 预下载，docker build 无需下载 Go/Node/GVM/NVM
 FROM ubuntu:24.04
 
 ARG USER=coder
@@ -22,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential bison gcc make \
     vim htop jq tree silversearcher-ag \
     sudo openssh-client bash-completion \
-    locales \
+    locales xz-utils \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,23 +33,79 @@ RUN groupadd -g ${GID} ${USER} \
     && echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER}
 
 # ============================================
-#  安装 GVM（Go Version Manager）
+#  GVM — 从本地 tarball 离线安装
 # ============================================
-USER ${USER}
-RUN bash -c "$(curl -fsSL https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)" \
-    && echo '[ -s "$HOME/.gvm/scripts/gvm" ] && source "$HOME/.gvm/scripts/gvm"' >> ~/.bashrc
+COPY downloads/gvm/gvm-master.tar.gz /tmp/
+
+RUN mkdir -p ${GVM_ROOT} \
+    && tar -xzf /tmp/gvm-master.tar.gz -C ${GVM_ROOT} --strip-components=1 \
+    && rm /tmp/gvm-master.tar.gz \
+    && chown -R ${USER}:${USER} ${GVM_ROOT}
+
+# 添加 shell 集成（GVM 本身 + Go 路径）
+RUN echo '[ -s "$HOME/.gvm/scripts/gvm" ] && source "$HOME/.gvm/scripts/gvm"' >> /home/${USER}/.bashrc \
+    && echo 'export GOPATH=$HOME/go' >> /home/${USER}/.bashrc \
+    && echo 'export PATH=$GOROOT/bin:$GOPATH/bin:$PATH' >> /home/${USER}/.bashrc
 
 # ============================================
-#  安装 NVM（Node Version Manager）
+#  NVM — 从本地 tarball 离线安装
 # ============================================
-RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
-    && echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.bashrc \
-    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ~/.bashrc
+COPY downloads/nvm/nvm-0.40.3.tar.gz /tmp/
+
+RUN mkdir -p ${NVM_DIR} \
+    && tar -xzf /tmp/nvm-0.40.3.tar.gz -C ${NVM_DIR} --strip-components=1 \
+    && rm /tmp/nvm-0.40.3.tar.gz \
+    && chown -R ${USER}:${USER} ${NVM_DIR}
+
+RUN echo 'export NVM_DIR="$HOME/.nvm"' >> /home/${USER}/.bashrc \
+    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /home/${USER}/.bashrc
 
 # ============================================
-#  安装 Docker CE（dind）
+#  Go — 从本地 tarball 离线安装
 # ============================================
-USER root
+COPY downloads/go/go${GO_VERSION}.linux-amd64.tar.gz /tmp/
+
+RUN mkdir -p ${GVM_ROOT}/archive \
+    && cp /tmp/go${GO_VERSION}.linux-amd64.tar.gz ${GVM_ROOT}/archive/ \
+    # 先试着用 GVM binary install（命中本地缓存）
+    && bash -c 'source "$HOME/.gvm/scripts/gvm" && gvm install go${GO_VERSION} -B' 2>/dev/null || true \
+    # fallback: 手动解压到 GVM 管理的 gos 目录
+    && if [ ! -d "${GVM_ROOT}/gos/go${GO_VERSION}" ]; then \
+         mkdir -p ${GVM_ROOT}/gos/go${GO_VERSION} \
+         && tar -xzf /tmp/go${GO_VERSION}.linux-amd64.tar.gz -C ${GVM_ROOT}/gos/go${GO_VERSION} --strip-components=1 \
+         && echo "  [fallback] Go installed via manual extract"; \
+       fi \
+    && rm /tmp/go${GO_VERSION}.linux-amd64.tar.gz \
+    && chown -R ${USER}:${USER} ${GVM_ROOT}
+
+ENV GOROOT=${GVM_ROOT}/gos/go${GO_VERSION}
+ENV GOPATH=/home/${USER}/go
+ENV PATH=${GVM_ROOT}/gos/go${GO_VERSION}/bin:${GOPATH}/bin:${PATH}
+
+# ============================================
+#  Node — 从本地 tarball 离线安装
+# ============================================
+COPY downloads/node/node-v${NODE_VERSION}-linux-x64.tar.xz /tmp/
+
+RUN mkdir -p ${NVM_DIR}/.cache/bin \
+    && cp /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz ${NVM_DIR}/.cache/bin/ \
+    # 先试着用 NVM install（命中本地缓存）
+    && bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+         && nvm install ${NODE_VERSION}' 2>/dev/null || true \
+    # fallback: 手动解压到 NVM 管理的 versions 目录
+    && if [ ! -d "${NVM_DIR}/versions/node/v${NODE_VERSION}" ]; then \
+         mkdir -p ${NVM_DIR}/versions/node/v${NODE_VERSION} \
+         && tar -xJf /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz -C ${NVM_DIR}/versions/node/v${NODE_VERSION} --strip-components=1 \
+         && echo "  [fallback] Node installed via manual extract"; \
+       fi \
+    && rm /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz \
+    && chown -R ${USER}:${USER} ${NVM_DIR}
+
+ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${PATH}
+
+# ============================================
+#  Docker CE（dind）— 保持在线安装
+# ============================================
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
     | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
@@ -65,55 +120,7 @@ COPY dind-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/dind-entrypoint.sh
 
 # ============================================
-#  离线预置 Go — 从本地 tarball 安装
-# ============================================
-USER ${USER}
-COPY downloads/go/go${GO_VERSION}.linux-amd64.tar.gz /tmp/
-
-RUN mkdir -p ${GVM_ROOT}/archive \
-    && cp /tmp/go${GO_VERSION}.linux-amd64.tar.gz ${GVM_ROOT}/archive/ \
-    && bash -c 'source "$HOME/.gvm/scripts/gvm" && gvm install go${GO_VERSION} -B || true' \
-    # 如果 GVM 没成功，手动解压
-    && if [ ! -d "${GVM_ROOT}/gos/go${GO_VERSION}" ]; then \
-         mkdir -p ${GVM_ROOT}/gos/go${GO_VERSION} \
-         && tar -C ${GVM_ROOT}/gos/go${GO_VERSION} --strip-components=1 -xzf /tmp/go${GO_VERSION}.linux-amd64.tar.gz; \
-       fi \
-    && rm /tmp/go${GO_VERSION}.linux-amd64.tar.gz
-
-# 设置默认 Go
-ENV GOROOT=${GVM_ROOT}/gos/go${GO_VERSION}
-ENV GOPATH=/home/${USER}/go
-ENV PATH=${GVM_ROOT}/gos/go${GO_VERSION}/bin:${GOPATH}/bin:${PATH}
-
-# ============================================
-#  离线预置 Node — 从本地 tarball 安装
-# ============================================
-COPY downloads/node/node-v${NODE_VERSION}-linux-x64.tar.xz /tmp/
-
-RUN mkdir -p ${NVM_DIR}/.cache/bin \
-    && cp /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz ${NVM_DIR}/.cache/bin/ \
-    && bash -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
-         && nvm install ${NODE_VERSION} || true' \
-    # 如果 NVM 没成功，手动解压
-    && if [ ! -d "${NVM_DIR}/versions/node/v${NODE_VERSION}" ]; then \
-         mkdir -p ${NVM_DIR}/versions/node/v${NODE_VERSION} \
-         && tar -C ${NVM_DIR}/versions/node/v${NODE_VERSION} --strip-components=1 -xJf /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz; \
-       fi \
-    && rm /tmp/node-v${NODE_VERSION}-linux-x64.tar.xz
-
-# 设置默认 Node
-ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${PATH}
-
-# ============================================
 #  收尾
 # ============================================
 USER ${USER}
 WORKDIR /home/${USER}
-
-# 写入 ~/.bashrc：自动加载 GVM + NVM，并设置默认 Go 路径
-RUN printf '\n# --- Coder dev workspace ---\n' >> ~/.bashrc \
-    && echo '[ -s "$HOME/.gvm/scripts/gvm" ] && source "$HOME/.gvm/scripts/gvm"' >> ~/.bashrc \
-    && echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.bashrc \
-    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ~/.bashrc \
-    && echo 'export GOPATH=$HOME/go' >> ~/.bashrc \
-    && echo 'export PATH=$GOROOT/bin:$GOPATH/bin:$PATH' >> ~/.bashrc
