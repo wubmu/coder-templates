@@ -20,6 +20,25 @@ coder-templates/
 └── README.md
 ```
 
+## 前置工具
+
+```bash
+# Terraform CLI（provider mirror 需要）
+wget -qO- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update && sudo apt install -y terraform
+```
+
+Coder CLI — 从 Coder 服务器下载（版本与服务器一致）：
+
+```bash
+# 替换为你的 Coder 地址
+curl -fsSL https://coder.wyb.2wahaha.top/install.sh | sh
+coder version
+```
+
+> 两个 CLI 都是一次性安装，日常推送模板和 mirror provider 需要用到。
+
 ## 快速开始
 
 ### 1. 构建 workspace 镜像
