@@ -23,12 +23,12 @@ variable "workspace_image" {
 
 variable "cpu" {
   type    = number
-  default = 2
+  default = 0.5
 }
 
 variable "memory" {
   type    = string
-  default = "1Gi"
+  default = "512Mi"
 }
 
 variable "disk_size" {
