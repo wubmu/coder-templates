@@ -105,10 +105,33 @@ else
   echo "  [完成] docker ($(du -h "${DOCKER_DIR}/docker" | cut -f1))"
 fi
 
+# ============================================
+#  code-server — VS Code Web（预下载二进制）
+# ============================================
+CODE_SERVER_VERSION="4.123.0"
+echo ">> 下载 code-server ${CODE_SERVER_VERSION} ..."
+CODE_SERVER_DIR="${DL_DIR}/code-server"
+mkdir -p "${CODE_SERVER_DIR}"
+CODE_SERVER_URL="https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
+if [ -f "${CODE_SERVER_DIR}/code-server" ]; then
+  echo "  [跳过] 已存在"
+else
+  curl -fsSL -o "${CODE_SERVER_DIR}/code-server.tar.gz" "${CODE_SERVER_URL}" || true
+  if [ -s "${CODE_SERVER_DIR}/code-server.tar.gz" ] && [ "$(stat -c%s "${CODE_SERVER_DIR}/code-server.tar.gz")" -gt 1000 ]; then
+    tar -xzf "${CODE_SERVER_DIR}/code-server.tar.gz" -C "${CODE_SERVER_DIR}" --strip-components=1
+    rm "${CODE_SERVER_DIR}/code-server.tar.gz"
+    chmod +x "${CODE_SERVER_DIR}/code-server"
+    echo "  [完成] code-server ($(du -h "${CODE_SERVER_DIR}/code-server" | cut -f1))"
+  else
+    rm -f "${CODE_SERVER_DIR}/code-server.tar.gz"
+    echo "  [失败] 下载失败，检查网络或手动下载 code-server 放到 ${CODE_SERVER_DIR}/code-server"
+  fi
+fi
+
 echo ""
 echo "========================================"
 echo ">> 预下载完成"
-du -sh "${DL_DIR}/gvm/"* "${DL_DIR}/nvm/"* "${DL_DIR}/go/"* "${DL_DIR}/node/"* 2>/dev/null
+du -sh "${DL_DIR}/gvm/"* "${DL_DIR}/nvm/"* "${DL_DIR}/go/"* "${DL_DIR}/node/"* "${DL_DIR}/code-server/"* 2>/dev/null
 echo "========================================"
 echo ">> 现在可以离线构建："
 echo "   docker build -t coder-dev:latest ."

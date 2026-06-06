@@ -126,6 +126,14 @@ RUN chown -R ${USER}:${USER} ${SKEL}
 # ============================================
 COPY downloads/coder/coder /usr/local/bin/coder
 COPY downloads/docker/docker /usr/local/bin/docker
+# code-server — 离线安装到 /opt/code-server
+COPY downloads/code-server/code-server.tar.gz /tmp/
+RUN mkdir -p /opt/code-server \
+    && tar -xzf /tmp/code-server.tar.gz -C /opt/code-server --strip-components=1 \
+    && rm /tmp/code-server.tar.gz \
+    && chmod +x /opt/code-server/bin/code-server
+ENV PATH=/opt/code-server/bin:${PATH}
+
 RUN chmod +x /usr/local/bin/coder /usr/local/bin/docker
 
 # ============================================
