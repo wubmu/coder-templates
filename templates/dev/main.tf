@@ -197,6 +197,10 @@ resource "coder_agent" "main" {
       echo ">>> Home already initialized"
     fi
 
+    # ---- 清理不用的 IDE 服务端（只保留 vscode-server） ----
+    rm -rf "$HOME"/.cursor-server "$HOME"/.vscodium-server \
+           "$HOME"/.vscode-insiders-server "$HOME"/.windsurf-server 2>/dev/null || true
+
     # ---- 确认工具就绪 ----
     source "$HOME/.bashrc" 2>/dev/null || true
     echo ">>> Go    $(go version   2>/dev/null || echo N/A)"
