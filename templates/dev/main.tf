@@ -197,14 +197,17 @@ resource "coder_agent" "main" {
       echo ">>> Home already initialized"
     fi
 
-    # ---- 确认工具就绪（PATH 已在镜像 ENV 设好，拷贝完直接用） ----
+    # ---- 确认工具就绪 ----
+    source "$HOME/.bashrc" 2>/dev/null || true
     echo ">>> Go    $(go version   2>/dev/null || echo N/A)"
     echo ">>> Node  $(node --version 2>/dev/null || echo N/A)"
     echo ">>> Docker $(docker --version 2>/dev/null || echo 'N/A')"
 
-    # 启动 code-server（如果镜像里有）
+    # 启动 code-server（重定向输出避免 pipe 不关闭导致脚本超时）
     if command -v code-server &>/dev/null; then
-      code-server --bind-addr 0.0.0.0:8080 --auth none /home/coder &
+      nohup code-server --bind-addr 0.0.0.0:8080 --auth none /home/coder \
+        > /tmp/code-server.log 2>&1 &
+      echo ">>> code-server running on :8080"
     fi
     echo ">>> Workspace ready"
   EOS
