@@ -11,11 +11,18 @@ NODE_VERSION="22.12.0"
 NVM_VERSION="0.40.3"
 GVM_BRANCH="master"
 
-# 镜像源
-MIRROR_GO="https://mirrors.aliyun.com/golang"
-MIRROR_NODE="https://mirrors.aliyun.com/nodejs-release"
-
+# ---- 加载镜像源配置 ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "${SCRIPT_DIR}/mirrors.env" ]; then
+  source "${SCRIPT_DIR}/mirrors.env"
+fi
+
+# 默认值（mirrors.env 未加载时使用）
+MIRROR_GO="${GO_MIRROR:-https://mirrors.aliyun.com/golang}"
+MIRROR_NODE="${NODE_MIRROR:-https://mirrors.aliyun.com/nodejs-release}"
+DOCKER_MIRROR="${DOCKER_MIRROR:-https://mirrors.aliyun.com/docker-ce/linux/static/stable/x86_64}"
+CODER_DOWNLOAD_URL="${CODER_DOWNLOAD_URL:-https://coder.wyb.2wahaha.top/bin/coder-linux-amd64}"
+
 DL_DIR="${SCRIPT_DIR}/downloads"
 mkdir -p "${DL_DIR}/go" "${DL_DIR}/node" "${DL_DIR}/gvm" "${DL_DIR}/nvm"
 
@@ -78,7 +85,7 @@ mkdir -p "${CODER_DIR}"
 if [ -f "${CODER_DIR}/coder" ]; then
   echo "  [跳过] 已存在"
 else
-  curl -fsSL -o "${CODER_DIR}/coder" "https://coder.wyb.2wahaha.top/bin/coder-linux-amd64" || true
+  curl -fsSL -o "${CODER_DIR}/coder" "${CODER_DOWNLOAD_URL}" || true
   if [ -s "${CODER_DIR}/coder" ]; then
     chmod +x "${CODER_DIR}/coder"
     echo "  [完成] coder ($(du -h "${CODER_DIR}/coder" | cut -f1))"
@@ -97,7 +104,7 @@ if [ -f "${DOCKER_DIR}/docker" ]; then
   echo "  [跳过] 已存在"
 else
   curl -fsSL -o "${DOCKER_DIR}/${DOCKER_TGZ}" \
-    "https://mirrors.aliyun.com/docker-ce/linux/static/stable/x86_64/${DOCKER_TGZ}"
+    "${DOCKER_MIRROR}/${DOCKER_TGZ}"
   # 只解压 docker CLI，不要 dockerd/containerd
   tar -xzf "${DOCKER_DIR}/${DOCKER_TGZ}" -C /tmp docker/docker
   mv /tmp/docker/docker "${DOCKER_DIR}/docker"

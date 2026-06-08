@@ -13,11 +13,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8
 
 # ============================================
-#  换阿里云 apt 源（国内加速）
+#  镜像源配置
 # ============================================
-RUN sed -i 's|//ports.ubuntu.com|//mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources \
-    && sed -i 's|//archive.ubuntu.com|//mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources \
-    && sed -i 's|//security.ubuntu.com|//mirrors.aliyun.com|g' /etc/apt/sources.list.d/ubuntu.sources
+COPY mirrors.env /tmp/mirrors.env
+
+# ============================================
+#  换 apt 源（从 mirrors.env 读取）
+# ============================================
+RUN set -a && . /tmp/mirrors.env && \
+    sed -i "s|//ports.ubuntu.com|//${APT_MIRROR}|g" /etc/apt/sources.list.d/ubuntu.sources && \
+    sed -i "s|//archive.ubuntu.com|//${APT_MIRROR}|g" /etc/apt/sources.list.d/ubuntu.sources && \
+    sed -i "s|//security.ubuntu.com|//${APT_MIRROR}|g" /etc/apt/sources.list.d/ubuntu.sources
 
 # ============================================
 #  系统基础工具
@@ -116,6 +122,10 @@ RUN echo '# ===== Coder workspace shell config =====' > ${SKEL}/.bashrc \
 RUN echo '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' > ${SKEL}/.profile \
     && chown ${USER}:${USER} ${SKEL}/.profile
 
+# .npmrc — npm 镜像源（持久化到 PVC，用户可自行修改）
+RUN set -a && . /tmp/mirrors.env && \
+    echo "registry=${NPM_REGISTRY}" > ${SKEL}/.npmrc
+
 # --------------------------------------------
 #  统一 chown（所有骨架文件归 coder 用户）
 # --------------------------------------------
@@ -133,6 +143,32 @@ RUN mkdir -p /opt/code-server \
     && rm /tmp/code-server.tar.gz \
     && chmod +x /opt/code-server/bin/code-server
 ENV PATH=/opt/code-server/bin:${PATH}
+
+# ============================================
+#  VS Code CLI + Server — 离线预装
+# ============================================
+
+# CLI 安装到系统路径（不依赖 PVC）
+COPY downloads/vscode/vscode_cli_alpine_x64_cli.tar.gz /tmp/
+RUN mkdir -p /opt/vscode-cli \
+    && tar -xzf /tmp/vscode_cli_alpine_x64_cli.tar.gz -C /opt/vscode-cli \
+    && rm /tmp/vscode_cli_alpine_x64_cli.tar.gz \
+    && chmod +x /opt/vscode-cli/code
+ENV PATH=/opt/vscode-cli:${PATH}
+
+# Server + CLI 副本预装到骨架 /opt/skel/.vscode-server/
+# 首次启动时 startup_script 的 cp -rn 会复制到 $HOME（PVC）
+COPY downloads/vscode/vscode-server-linux-x64.tar.gz /tmp/
+COPY downloads/vscode/commit.txt /tmp/
+RUN VSCODE_COMMIT=$(cat /tmp/commit.txt) \
+    && mkdir -p ${SKEL}/.vscode-server/cli/servers/Stable-${VSCODE_COMMIT}/server \
+    && tar -xzf /tmp/vscode-server-linux-x64.tar.gz \
+        -C ${SKEL}/.vscode-server/cli/servers/Stable-${VSCODE_COMMIT}/server \
+        --strip-components=1 \
+    && rm /tmp/vscode-server-linux-x64.tar.gz /tmp/commit.txt \
+    && cp /opt/vscode-cli/code ${SKEL}/.vscode-server/code-${VSCODE_COMMIT} \
+    && echo '["Stable-'${VSCODE_COMMIT}'"]' > ${SKEL}/.vscode-server/cli/servers/lru.json \
+    && chown -R ${USER}:${USER} ${SKEL}/.vscode-server
 
 RUN chmod +x /usr/local/bin/coder /usr/local/bin/docker
 

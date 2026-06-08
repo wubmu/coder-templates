@@ -54,6 +54,7 @@ Coder 模板的两个核心 resource：
 
 关键点：
 - **离线优先**：整个链路设计目标是不依赖公网 — Go/Node/GVM/NVM/Docker CLI/code-server/VS Code Server 全部 `download.sh` 预下载，Terraform provider 走本地 mirror，workspace 启动后工具立即可用，零网络等待
+- **镜像源**：apt/Go/Node/Docker CLI/npm 镜像源统一配置在 `docker/dev/mirrors.env`，`download.sh` 和 `Dockerfile` 都从它读取，换源只改一个文件
 - **Docker-in-Docker**：不走真正的 dind，而是挂载宿主 `/var/run/docker.sock`（dood 模式），容器里只有 Docker CLI
 
 ## 两个模板
