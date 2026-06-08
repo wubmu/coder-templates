@@ -53,9 +53,8 @@ Coder 模板的两个核心 resource：
 - `coder_app` — 把 agent 内部端口暴露为 Coder UI 上的可点击应用（如 code-server），`subdomain = true` 生成独立子域名，格式 `${slug}--${workspace}--${user}.${wildcard}`
 
 关键点：
+- **离线优先**：整个链路设计目标是不依赖公网 — Go/Node/GVM/NVM/Docker CLI/code-server/VS Code Server 全部 `download.sh` 预下载，Terraform provider 走本地 mirror，workspace 启动后工具立即可用，零网络等待
 - **Docker-in-Docker**：不走真正的 dind，而是挂载宿主 `/var/run/docker.sock`（dood 模式），容器里只有 Docker CLI
-- **code-server + VS Code Server** 都预装在镜像里，启动后立即可用，不需要联网下载
-- **Provider mirror**：`scripts/mirror-providers.sh` 把 Terraform provider 预下载到本地，Coder Server 设 `CODER_TERRAFORM_MIRROR_DIR` 后 `terraform init` 不走公网
 
 ## 两个模板
 
