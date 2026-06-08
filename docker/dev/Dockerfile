@@ -118,6 +118,12 @@ RUN echo '# ===== Coder workspace shell config =====' > ${SKEL}/.bashrc \
     && echo '' >> ${SKEL}/.bashrc \
     && echo 'export PS1="\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ "' >> ${SKEL}/.bashrc
 
+# Python pip/uv mirror env（追加到 .bashrc）
+RUN set -a && . /tmp/mirrors.env && \
+    echo '' >> ${SKEL}/.bashrc && \
+    echo '# Python (uv / pip mirror)' >> ${SKEL}/.bashrc && \
+    echo 'export UV_INDEX_URL="'${PYPI_MIRROR}'"' >> ${SKEL}/.bashrc
+
 # .profile — login shell 时 source .bashrc
 RUN echo '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' > ${SKEL}/.profile \
     && chown ${USER}:${USER} ${SKEL}/.profile
@@ -126,16 +132,23 @@ RUN echo '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"' > ${SKEL}/.profile \
 RUN set -a && . /tmp/mirrors.env && \
     echo "registry=${NPM_REGISTRY}" > ${SKEL}/.npmrc
 
+# pip.conf — pip 镜像源
+RUN set -a && . /tmp/mirrors.env && \
+    mkdir -p ${SKEL}/.config/pip && \
+    echo "[global]" > ${SKEL}/.config/pip/pip.conf && \
+    echo "index-url = ${PYPI_MIRROR}" >> ${SKEL}/.config/pip/pip.conf
+
 # --------------------------------------------
 #  统一 chown（所有骨架文件归 coder 用户）
 # --------------------------------------------
 RUN chown -R ${USER}:${USER} ${SKEL}
 
 # ============================================
-#  Docker CLI + Coder CLI（系统路径，不依赖 home）
+#  Docker CLI + Coder CLI + uv（系统路径，不依赖 home）
 # ============================================
 COPY downloads/coder/coder /usr/local/bin/coder
 COPY downloads/docker/docker /usr/local/bin/docker
+COPY downloads/uv/uv /usr/local/bin/uv
 # code-server — 离线安装到 /opt/code-server
 COPY downloads/code-server/code-server.tar.gz /tmp/
 RUN mkdir -p /opt/code-server \
@@ -170,7 +183,7 @@ RUN VSCODE_COMMIT=$(cat /tmp/commit.txt) \
     && echo '["Stable-'${VSCODE_COMMIT}'"]' > ${SKEL}/.vscode-server/cli/servers/lru.json \
     && chown -R ${USER}:${USER} ${SKEL}/.vscode-server
 
-RUN chmod +x /usr/local/bin/coder /usr/local/bin/docker
+RUN chmod +x /usr/local/bin/coder /usr/local/bin/docker /usr/local/bin/uv
 
 # ============================================
 #  收尾

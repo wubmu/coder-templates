@@ -62,7 +62,7 @@ Coder 模板的两个核心 resource：
 | | k8s-basic | dev |
 |------|-----------|-----|
 | 镜像 | `ghcr.io/coder/coder:latest`（官方） | `coder-dev:latest`（自建） |
-| 工具 | 最小化（curl/git 后现场装） | GVM + Go 1.23 + NVM + Node 22 + Docker CLI + code-server + VS Code |
+| 工具 | 最小化（curl/git 后现场装） | GVM + Go 1.23 + NVM + Node 22 + Docker CLI + uv + code-server + VS Code |
 | Docker | ❌ | ✅ hostPath docker.sock |
 | 骨架 | ❌ | ✅ `/opt/skel` → PVC |
 | PVC | `/home/coder`（10Gi） | `/home/coder`（40Gi，含 Docker 镜像开销） |

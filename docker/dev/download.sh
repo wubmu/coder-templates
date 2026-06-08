@@ -124,6 +124,30 @@ else
 fi
 
 # ============================================
+#  uv — Python 包管理器（单二进制，GitHub 下载）
+# ============================================
+UV_VERSION="${UV_VERSION:-0.8.19}"
+echo ">> 下载 uv ${UV_VERSION} ..."
+UV_DIR="${DL_DIR}/uv"
+mkdir -p "${UV_DIR}"
+UV_ARCHIVE="uv-x86_64-unknown-linux-gnu.tar.gz"
+if [ -f "${UV_DIR}/uv" ]; then
+  echo "  [跳过] 已存在"
+else
+  curl -fsSL -o "${UV_DIR}/${UV_ARCHIVE}" \
+    "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${UV_ARCHIVE}" || true
+  if [ -s "${UV_DIR}/${UV_ARCHIVE}" ] && [ "$(stat -c%s "${UV_DIR}/${UV_ARCHIVE}")" -gt 1000 ]; then
+    tar -xzf "${UV_DIR}/${UV_ARCHIVE}" -C "${UV_DIR}" --strip-components=1
+    rm "${UV_DIR}/${UV_ARCHIVE}"
+    chmod +x "${UV_DIR}/uv"
+    echo "  [完成] uv ${UV_VERSION} ($(du -h "${UV_DIR}/uv" | cut -f1))"
+  else
+    rm -f "${UV_DIR}/${UV_ARCHIVE}"
+    echo "  [失败] 下载失败，检查网络或手动下载 uv 放到 ${UV_DIR}/uv"
+  fi
+fi
+
+# ============================================
 #  code-server — VS Code Web（预下载二进制）
 # ============================================
 CODE_SERVER_VERSION="4.123.0"
@@ -191,7 +215,7 @@ fi
 echo ""
 echo "========================================"
 echo ">> 预下载完成"
-du -sh "${DL_DIR}/gvm/"* "${DL_DIR}/nvm/"* "${DL_DIR}/go/"* "${DL_DIR}/node/"* "${DL_DIR}/code-server/"* "${DL_DIR}/vscode/"* 2>/dev/null
+du -sh "${DL_DIR}/gvm/"* "${DL_DIR}/nvm/"* "${DL_DIR}/go/"* "${DL_DIR}/node/"* "${DL_DIR}/uv/"* "${DL_DIR}/code-server/"* "${DL_DIR}/vscode/"* 2>/dev/null
 echo "========================================"
 echo ">> 现在可以离线构建："
 echo "   docker build -t coder-dev:latest ."
