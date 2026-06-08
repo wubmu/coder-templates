@@ -75,8 +75,7 @@ k8s-basic 是通用最小模板，dev 是全栈开发模板。新增模板建议
 ```bash
 # === 构建 dev 镜像 ===
 cd docker/dev
-bash download.sh            # 预下载 Go/Node/GVM/NVM/Docker CLI/code-server（只需一次）
-bash download-vscode.sh     # 预下载 VS Code CLI + Server（只需一次）
+bash download.sh               # 预下载所有依赖（只需一次），--skip-vscode 跳过 VS Code
 cd ../..
 REGISTRY=registry.example.com/coder bash scripts/build-images.sh dev
 
