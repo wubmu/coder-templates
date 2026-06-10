@@ -109,10 +109,6 @@ resource "kubernetes_pod" "main" {
           cpu    = "${var.cpu}"
           memory = var.memory
         }
-        limits = {
-          cpu    = "${var.cpu * 2}"
-          memory = var.memory
-        }
       }
       volume_mount {
         name       = "home"
