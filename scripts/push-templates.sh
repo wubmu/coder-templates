@@ -39,6 +39,7 @@ echo "   目录:      ${TEMPLATE_DIR}"
 
 coder templates push "${TEMPLATE_NAME}" \
   --directory "${TEMPLATE_DIR}" \
-  --variable "namespace=${CODER_NAMESPACE}"
+  --variable "namespace=${CODER_NAMESPACE}" \
+  --yes
 
 echo ">> 完成: ${TEMPLATE_NAME} 模板已推送"

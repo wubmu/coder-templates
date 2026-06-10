@@ -18,17 +18,17 @@ variable "namespace" {
 
 variable "workspace_image" {
   type    = string
-  default = "ghcr.io/coder/coder:latest"
+  default = "coder-dev:latest"
 }
 
 variable "cpu" {
   type    = number
-  default = 0.25
+  default = 1
 }
 
 variable "memory" {
   type    = string
-  default = "256Mi"
+  default = "1Gi"
 }
 
 variable "disk_size" {
@@ -187,14 +187,15 @@ resource "coder_agent" "main" {
   startup_script = <<-EOS
     set -e
 
-    # ---- 首次启动：从镜像骨架复制工具到 PVC ----
-    if [ ! -f "$HOME/.coder-skel-init" ]; then
-      echo ">>> First boot: initializing home from skeleton..."
+    # ---- 骨架同步：版本化增量更新，不覆盖已有文件 ----
+    SKEL_VERSION="1"
+    if [ "$(cat "$HOME/.coder-skel-version" 2>/dev/null)" != "$SKEL_VERSION" ]; then
+      echo ">>> Updating home from skeleton (version $SKEL_VERSION)..."
       cp -rn /opt/skel/. "$HOME"/ 2>/dev/null || true
-      touch "$HOME/.coder-skel-init"
-      echo ">>> Home initialized (Go, Node, GVM, NVM ready)"
+      echo "$SKEL_VERSION" > "$HOME/.coder-skel-version"
+      echo ">>> Home updated to skeleton version $SKEL_VERSION"
     else
-      echo ">>> Home already initialized"
+      echo ">>> Home skeleton up-to-date (version $SKEL_VERSION)"
     fi
 
 
@@ -206,6 +207,7 @@ resource "coder_agent" "main" {
 
     # 启动 code-server（重定向输出避免 pipe 不关闭导致脚本超时）
     if command -v code-server &>/dev/null; then
+      export EXTENSIONS_GALLERY='{"serviceUrl":"https://marketplace.visualstudio.com/_apis/public/gallery","cacheUrl":"https://vscode.blob.core.windows.net/gallery/index","itemUrl":"https://marketplace.visualstudio.com/items"}'
       nohup code-server --bind-addr 0.0.0.0:8080 --auth none /home/coder \
         > /tmp/code-server.log 2>&1 &
       echo ">>> code-server running on :8080"
